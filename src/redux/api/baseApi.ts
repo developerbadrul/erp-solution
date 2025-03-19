@@ -4,14 +4,18 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
 export const baseApi = createApi({
     reducerPath: 'api',
     baseQuery: fetchBaseQuery({
-        baseUrl: 'https://jsonplaceholder.typicode.com'
+        baseUrl: import.meta.env.VITE_BASE_API,
+        prepareHeaders: (headers) => {
+            headers.set("Authorization", import.meta.env.VITE_API_TOKEN)
+            return headers
+        },
     }),
     endpoints: (builder) => ({
-        getUser: builder.query<any, void>({
-            query: () => '/users',
-        })
+        getCountries: builder.query<any, void>({
+            query: () => "countries/list",
+        }),
     }),
 })
 
 
-export const { useGetUserQuery } = baseApi;
+export const { useGetCountriesQuery } = baseApi;
