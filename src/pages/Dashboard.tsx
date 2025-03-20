@@ -1,10 +1,13 @@
- 
- const Dashboard = () => {
+import CountryTable from "../components/CountryTable";
+
+
+const Dashboard = () => {
     return (
         <div>
-           Welcome to Dashboard
+            Welcome to Dashboard
+            <CountryTable />
         </div>
     );
- };
- 
- export default Dashboard;
+};
+
+export default Dashboard;
