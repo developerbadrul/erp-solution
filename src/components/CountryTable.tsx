@@ -1,84 +1,102 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState } from "react";
+import "react-data-grid/lib/styles.css";
+import { DataGrid } from "react-data-grid";
 import { useGetCountriesQuery } from "../redux/api/baseApi";
+import { useAppDispatch, useAppSelector } from "../redux/hooks";
 import {
-  ColumnDef,
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+  setSearch,
+  setStatus,
+  setCurrentPage,
+  resetFilters
+} from "../redux/features/countrySlice";
 
-interface Country {
-  name: string;
-  code: string;
-}
+const CountryTable = () => {
+  const { data, isLoading } = useGetCountriesQuery();
+  const dispatch = useAppDispatch();
+  const { search, status, currentPage, itemsPerPage } = useAppSelector((state) => state.country);
 
-const CountryTable: React.FC = () => {
-  const { data, isLoading, error } = useGetCountriesQuery();
-  const countries: Country[] = data?.data?.list ?? [];
+  if (isLoading) return <div>Loading...</div>;
+  if (!data || !data.data || !data.data.list) return <div>No data available</div>;
 
-  console.log("API Response:", countries);
+  // Filtering 
+  const filteredCountries = data.data.list
+    .filter((country) => country?.name)
+    .filter((country) =>
+      country.name.toLowerCase().includes(search.toLowerCase()) ||
+      country.id?.toString().includes(search) ||
+      country.code?.toLowerCase().includes(search.toLowerCase())
+    )
+    .filter((country) => (status === "all" ? true : country.is_active === (status === "active" ? 1 : 0)));
 
-  const [searchTerm, setSearchTerm] = useState("");
-
-  const filteredCountries = countries.filter(
-    (country) =>
-      country?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false
+  // Pagination 
+  const totalPages = Math.ceil(filteredCountries.length / itemsPerPage);
+  const paginatedCountries = filteredCountries.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
   );
 
-  const columns: ColumnDef<Country>[] = [
+  // Define columns for React Data Grid
+  const columns = [
+    { key: "name", name: "Country Name" },
+    { key: "id", name: "ID" },
+    { key: "code", name: "Code" },
     {
-      accessorKey: "name",
-      header: () => <span>Name</span>,
+      key: "is_active",
+      name: "Status",
+      renderCell: ({ row }) => (row.is_active ? "Active" : "Inactive"),
     },
-    {
-      accessorKey: "code",
-      header: () => <span>Code</span>,
-    },
+    { key: "action", name: "Action" },
   ];
 
-  const table = useReactTable({
-    data: filteredCountries,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-  });
-
-  if (isLoading) return <p>Loading...</p>;
-  if (error) return <p>Error loading countries</p>;
-
   return (
-    <div>
-      <input
-        type="text"
-        placeholder="Search countries..."
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-        className="border p-2 rounded"
-      />
-      <table className="border-collapse border w-full mt-4">
-        <thead>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <tr key={headerGroup.id}>
-              {headerGroup.headers.map((header) => (
-                <th key={header.id} className="border p-2">
-                  {flexRender(header.column.columnDef.header, header.getContext())}
-                </th>
-              ))}
-            </tr>
-          ))}
-        </thead>
-        <tbody>
-          {table.getRowModel().rows.map((row) => (
-            <tr key={row.id}>
-              {row.getVisibleCells().map((cell) => (
-                <td key={cell.id} className="border p-2">
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="p-4">
+      {/* Search and Filter */}
+      <div className="flex justify-between mb-4">
+        <input
+          type="text"
+          placeholder="Search by Name, ID, Code"
+          value={search}
+          onChange={(e) => dispatch(setSearch(e.target.value))}
+          className="border px-2 py-1 rounded"
+        />
+
+        <select
+          value={status}
+          onChange={(e) => dispatch(setStatus(e.target.value))}
+          className="border px-2 py-1 rounded"
+        >
+          <option value="all">All</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+
+        <button onClick={() => dispatch(resetFilters())} className="border px-4 py-1 rounded bg-red-500 text-white">
+          Reset Filters
+        </button>
+      </div>
+
+      {/* React Data Grid Table */}
+      <div style={{ height: 400, colorScheme: "white" }}>
+        <DataGrid columns={columns} rows={paginatedCountries} />
+      </div>
+
+      {/* Pagination */}
+      <div className="flex justify-center mt-4">
+        <button
+          onClick={() => dispatch(setCurrentPage(Math.max(currentPage - 1, 1)))}
+          disabled={currentPage === 1}
+          className="border px-4 py-1 mx-2"
+        >
+          Prev
+        </button>
+        <span>Page {currentPage} of {totalPages}</span>
+        <button
+          onClick={() => dispatch(setCurrentPage(Math.min(currentPage + 1, totalPages)))}
+          disabled={currentPage === totalPages}
+          className="border px-4 py-1 mx-2"
+        >
+          Next
+        </button>
+      </div>
     </div>
   );
 };
